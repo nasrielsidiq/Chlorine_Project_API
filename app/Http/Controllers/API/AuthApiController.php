@@ -32,7 +32,8 @@ class AuthApiController extends Controller
         return response()->json([
             'message' => 'Login success',
             'token' => $token,
-            'user' => $user
+            'user' => $user,
+            // 'profile' => $user->profile
         ], 200);
     }
     public function logout(){
@@ -43,5 +44,5 @@ class AuthApiController extends Controller
             ], 200);
         }
     }
-    
+
 }

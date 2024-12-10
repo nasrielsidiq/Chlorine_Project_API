@@ -9,13 +9,14 @@ use App\Models\Internship;
 use App\Models\Student;
 use App\Models\Task;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 function getDistanceBetweenPoints($lat1, $lon1, $lat2, $lon2): float
 {
-    $earthRadius = 6371 * 1000; 
+    $earthRadius = 6371 * 1000;
 
     $latFrom = deg2rad($lat1);
     $lonFrom = deg2rad($lon1);
@@ -139,89 +140,49 @@ class StudentController extends Controller
     public function absence(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            // 'tanggal' => 'required',
-            // 'status' => 'required',
-            // 'id_siswa' => 'required',
+            'status' => 'required',
+            // 'student_id' => 'required',
             'latitude' => 'required',
             'longitude' => 'required',
-            // 'face_image' => 'required'
+            'face_image' => 'required'
         ]);
-        // $user_id = auth()->guard('api')->user();
-        // $id_user = $user_id->id;
-        $siswa = Auth::guard('api')->user()->profile;
-        // $id_siswa = $siswa->id;
-        $monitoring = Internship::where('student_id', $siswa->id)->first();
-        // $id_industri = $monitoring->id_industri;
-        $industri = Industry::where('id', $monitoring->industry_id)->first();
-        $latitude = $industri->latitude;
-        $longitude = $industri->longitude;
-        // $alamat = $industri->alamat;
-
-        $point1 = ([
-            "latitude" => $latitude,
-            "longitude" => $longitude
-        ]);
-        $point2 = ([
-            "latitude" => $request->latitude,
-            "longitude" => $request->longitude
-        ]);
-        $distance = getDistanceBetweenPoints($point1['latitude'], $point1['longitude'], $point2['latitude'], $point2['longitude']);
-        $distances = $distance['meters'];
-
-
-
-        // $mode = $request->mode;
-        // $tokenMasuk = Token::orderBy('created_at','desc')->first();
-        // $currentTime = Carbon::now('Asia/Jakarta');
-
-        // if ($mode == "Lokasi") {
-        if ($distances > 1000) {
-            return response()->json([
-                'message' => 'Anda berada di luar zona kehadiran',
-                'latitude' => $point2['latitude'],
-                'longitude' => $point2['longitude'],
-                'distances' => $distances,
-            ], 403);
-        }
-        // }
-
-        // if ($mode == "Token") {
-        //     if ($request->token_masuk != $tokenMasuk->token_masuk) {
-        //         return response()->json([
-        //             'message' => 'Token tidak sesuai!'
-        //         ], 401);
-        //     }
-
-        //     if ($currentTime > $tokenMasuk->kadaluarsa_pada) {
-        //         return response()->json([
-        //             'message' => 'Token expired!'
-        //         ], 404);
-        //     }
-        // }
-
-
         if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
-        // $user = Auth::guard('api')->user();
-        $absen = Attendance::create([
+        $siswa = Auth::guard('api')->user()->profile;
+        $monitoring = Internship::where('student_id', $siswa->id)->first();
+        $industri = Industry::where('id', $monitoring->industry_id)->first();
+        $distance = getDistanceBetweenPoints($industri->latitude, $industri->longitude, $request->latitude, $request->longitude);
+        if ($distance > 10) {
+            return response()->json([
+                'message' => 'Anda berada di luar zona kehadiran',
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'distances' => round($distance, 2) . ' M',
+            ], 403);
+        }
+
+        if ($request->file('face_image')) {
+            $file_name = $siswa->nisn.'_'.Carbon::now().'_absence.'.$request->file('face_image')->getClientOriginalExtension();
+            $request->file('face_image')->storeAs('absence', $file_name);
+        }
+
+        Attendance::create([
             'student_id' => $siswa->id,
-            'description' => $request->description ? $request->description : 'null',
-            'status' => 'present'
+            'description' => $request->description ? $request->description : null,
+            'status' => 'present',
+            'face_image' => $file_name,
+            'distance' => round($distance, 2). ' M',
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
         ]);
-        // if ($absen) {
+
+        $absen = Attendance::orderBy('created_at', 'desc')->where('student_id', $siswa->id)->first();
         return response()->json([
             'success' => true,
-            'distances' => $distances,
+            'distances' => round($distance, 2). ' M',
             'absen' => $absen,
-            // 'absensiMasuk' => $absensiMasuk
         ], 201);
-        // } else {
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => "Upload kehadiran gagal"
-        //     ], 409);
-        // }
     }
 
     public function history()

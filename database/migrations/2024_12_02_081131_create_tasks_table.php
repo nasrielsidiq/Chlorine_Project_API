@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('description');
             $table->boolean('is_done');
+            $table->integer('score')->default(0);
+            $table->integer('attitude')->default(0);
             $table->timestamps();
             $table->foreign('student_id')->references('id')->on('students')->cascadeOnDelete()->cascadeOnUpdate();
         });
