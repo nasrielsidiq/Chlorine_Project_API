@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('owner');
             $table->text('address');
-            $table->string('lat');
-            $table->string('long');
+            $table->decimal('latitude', 10, 8); 
+            $table->decimal('longitude', 11, 8);
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete()->cascadeOnUpdate();
             $table->timestamps();
         });

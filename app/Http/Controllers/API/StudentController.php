@@ -13,18 +13,24 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
-function getDistanceBetweenPoints($lat1, $lon1, $lat2, $lon2)
+function getDistanceBetweenPoints($lat1, $lon1, $lat2, $lon2): float
 {
-    $theta = $lon1 - $lon2;
-    $miles = (sin(deg2rad($lat1)) * sin(deg2rad($lat2))) + (cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta)));
-    $miles = acos($miles);
-    $miles = rad2deg($miles);
-    $miles = $miles * 60 * 1.1515;
-    $feet  = $miles * 5280;
-    $yards = $feet / 3;
-    $kilometers = $miles * 1.609344;
-    $meters = $kilometers * 1000;
-    return compact('miles', 'feet', 'yards', 'kilometers', 'meters');
+    $earthRadius = 6371 * 1000; 
+
+    $latFrom = deg2rad($lat1);
+    $lonFrom = deg2rad($lon1);
+    $latTo = deg2rad($lat2);
+    $lonTo = deg2rad($lon2);
+
+    $latDelta = $latTo - $latFrom;
+    $lonDelta = $lonTo - $lonFrom;
+
+    $a = sin($latDelta / 2) * sin($latDelta / 2) +
+        cos($latFrom) * cos($latTo) *
+        sin($lonDelta / 2) * sin($lonDelta / 2);
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+    return $earthRadius * $c;
 }
 
 class StudentController extends Controller
@@ -58,7 +64,8 @@ class StudentController extends Controller
     //     //can beress
     // }
 
-    public function updateStudent(Request $request){
+    public function updateStudent(Request $request)
+    {
         $student = Auth::guard('api')->user();
         User::where('id', $student->id)->update([
             'password' => $request->password
@@ -168,14 +175,14 @@ class StudentController extends Controller
         // $currentTime = Carbon::now('Asia/Jakarta');
 
         // if ($mode == "Lokasi") {
-            if ($distances > 1000) {
-                return response()->json([
-                    'message' => 'Anda berada di luar zona kehadiran',
-                    'latitude' => $point2['latitude'],
-                    'longitude' => $point2['longitude'],
-                    'distances' => $distances,
-                ], 403);
-            }
+        if ($distances > 1000) {
+            return response()->json([
+                'message' => 'Anda berada di luar zona kehadiran',
+                'latitude' => $point2['latitude'],
+                'longitude' => $point2['longitude'],
+                'distances' => $distances,
+            ], 403);
+        }
         // }
 
         // if ($mode == "Token") {
@@ -199,7 +206,7 @@ class StudentController extends Controller
         // $user = Auth::guard('api')->user();
         $absen = Attendance::create([
             'student_id' => $siswa->id,
-            'description' => $request->description? $request->description: 'null',
+            'description' => $request->description ? $request->description : 'null',
             'status' => 'present'
         ]);
         // if ($absen) {
@@ -217,7 +224,8 @@ class StudentController extends Controller
         // }
     }
 
-    public function history(){
+    public function history()
+    {
         $student = Auth::guard('api')->user()->profile;
         $absence = Attendance::where('student_id', $student->id)->get();
         return response()->json([
